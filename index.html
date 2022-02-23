@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="author" content="Kemal Erdem">
 
-  <title>Presentation Template by Kemal Erdem</title>
+  <title>Attention!</title>
 
   <link rel="stylesheet" href="dist/reset.css">
   <link rel="stylesheet" href="dist/reveal.css">
@@ -15,53 +15,488 @@
   <link rel="stylesheet" href="dist/theme/black.css" id="theme">
 
   <!-- Theme used for syntax highlighting of code -->
-  <link rel="stylesheet" href="css/highlight/isbl-editor-light.css">
+  <link rel="stylesheet" href="plugin/highlight/monokai.css" id="highlight-theme">
 </head>
 <body>
 <div class="reveal">
   <div class="slides">
-    <section class="main-slide">
-      <h2>Presentation Template</h2>
-      <small>Authors...</small>
-    </section>
     <section>
-      <h2>Presentation pointer</h2>
-      <h5>("Q" for pointer)</h5>
-      <a href="https://github.com/burnpiro/reveal-pointer">Check plugin's page for details</a>
+      <h2>Transformer</h2>
+      <p>Architecture overview</p>
+      <small>Bartosz Wójtowicz</small>
     </section>
-    <section class="full-width-slide">
-      <h2>Drawing board </h2>
-      <h5>("T" to toggle drawing board)</h5>
-      <p class="small">("D" to toggle drawing)</p>
-      <p class="small">("Ctrl + z" to remove last line)</p>
-      <p class="small">"1", "2", "3", "4" to change colors<br/>
-        (depends on your color list, if you have 5 colors then 1,2,3,4,5 etc)</p>
-      <a class="small" href="https://github.com/burnpiro/reveal-drawer">Check plugin's page for details</a>
+
+    <section data-auto-animate>
+      <h2 data-id='code-title'>Presentation outline</h2>
+      <ol>
+        
+        <li class = "fragment">What's wrong with RNNs?</li>
+        <li class = "fragment">Attention</li>
+        <li class = "fragment">Attention is all you need</li>
+        <li class = "fragment">Multi-Head Scaled Dot-Product Attention</li>
+        <li class = "fragment">Positional Embeddings/Encodings</li>
+        <li class = "fragment">Encoder Block</li>
+        <li class = "fragment">Decoder Block</li>
+        <li class = "fragment">Architecture examples</li>
+      </ol>
     </section>
-    <section class="full-width-compressed-slide">
-      <h2>Slide 1</h2>
-      <p class="fragment">
-        ABC
-        $$
-        L_{a}T_{e}X
-        $$
-      </p>
-      <pre><code data-trim data-noescape>
-(def lazy-fib
-  (concat
-   [0 1]
-   ((fn rfib [a b]
-        (lazy-cons (+ a b) (rfib b (+ a b)))) 0 1)))
-  </code></pre>
-    </section>
+
     <section>
-      <h2>Thanks</h2>
-      <blockquote>"There's no such thing as a stupid question!"</blockquote>
-      <p>
-        <small>Authors</small><br/>
-        <small><a href="">Links</a></small><br/>
-      </p>
+      <h3>What's wrong with RNNs?</h3>
+      <p>Conventional encoder-decoder seq2seq approaches like RNNs and LSTMs suffer from:</p>
+      <ul>
+        <li class = "fragment">Inefficiency - hard to parallize!</li>
+        <li class = "fragment">Long term dependencies - still bad performance!</li>
+        <li class = "fragment">Backpropagation through sequence</li>
+      </ul>
+      <img src="images/rnn_problem.png">
     </section>
+
+    <section data-background-iframe="https://arxiv.org/pdf/1409.0473.pdf" data-background-interactive></section>
+
+    <section>
+      <h3>Original Attention</h3>
+      <p>Intuition - weighed sum of inputs, where weights are learn through simple NN</p>
+      <p>Key insights:</p>
+      <ol>
+        <li class = "fragment">During decoding: take weighed sum of all encoder inputs up to this point and pass them to hidden state</li>
+        <li class = "fragment">Provides context for given decoder step</li>
+        <li class = "fragment">Removes bottleneck of previous encoder-decoder architectures</li>
+      </ol>
+    </section>
+
+    <section>
+      <h3>Self-Attention</h3>
+      <p>Attention mechanism relating different positions of a single sequence in order to compute a representation of the same sequence.</p>
+    </section>
+
+    <section>
+      <h3>Attention is All You Need</h3>
+      <p class = "fragment">Transformer model - built entirely on self-attention without any recurrence</p>
+    </section>
+
+    <section>
+      <h3>Transformer - Quick Look</h3>
+      <div style="display: inline-grid; grid-template-columns: 40% 60%;margin-left: 0%; margin-right: 0%;">
+        <div style="height: 100%; margin-bottom: 0%;">
+          <img src="images/vanilla_transformer.png">
+        </div>
+        <div>
+          <ul>
+            <br>
+            <li class = "fragment">Encoder - maps input sequence into a latent representation (memory) of the whole sequence.</li><br>
+            <li class = "fragment">Decoder - generates output based on memory and already generated words.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <section>
+        <h3>Position information</h3>
+        <p class="fragment">
+          Each layer in our model is permutation invariant (no recurrence, no convolution).
+          If we change the order of words in a sentence, we get the exact same output.
+        </p>
+        <p class="fragment">We want our model to make use of the order of the sequence.</p>
+      </section>
+
+      <section>
+        <h3>Positional Embedding</h3>
+        <!-- <p>We simply embed the positions exactly the same way as words.</p> -->
+        <p class="fragment">
+          Just as we create (learnable) embeddings $v_{\text{cat}}, v_{\text{dog}}$ for words,
+          we also create embeddings $v_{1},...,v_{m}$ for each position in a sequence.
+        </p>
+        <br>
+        <p class="fragment">+ easy to implement, works well</p>
+        <p class="fragment">- need sequences of every length during training</p>				
+      </section>
+
+      <section>
+        <h3>Positional Encoding</h3>
+        <p class="fragment">
+          We use function $f: N \to \mathbb{R}^K$ (usually a combination of $sin$ and $cos$ functions) to create positional embedding for different positions.
+        </p>
+        <br>
+        <p class="fragment">+ works just as well as embeddings</p>
+        <p class="fragment">+ deals with sequences longer than in training</p>
+        <p class="fragment">- a little harder to implement</p>
+        <p class="fragment">- choice of encoding functions can be hard</p>
+      </section>
+    </section>
+
+    <section>
+      <section>	
+        <h3>Self-Attention - transformer</h3>
+        <p>
+          We are transforming input vectors $x_1, x_2,..., x_t$ into corrseponding  output vectors $y_1, y_2,..., y_t$. <br>
+          E.g. $y_i$ can be weighed avereage over all input vectors.
+        </p>
+        <div style="display: inline-grid; grid-template-columns: 65% 35%; margin-left: 0%; margin-right: 0%;" class="fragment">
+          <div style="height: 120%; margin-right: 0%;">
+            <img src="images/self-attention-idea.svg">
+          </div>
+          <div>
+            <p>
+              $y_i = \sum_{j} w_{ij}x_j$ <br><br>
+              $w'_{ij} = x_{i}^{T}x_j$ <br><br>
+              $w_{ij} = \text{softmax}(w'_{ij})$
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h3>Self-Attention - key, value, query</h3>
+        <p style="text-align: left">
+          From each input vector $x_i$ we derive three new vectors called $query, key$ and $value$ by linear transformation on $x_i$ <br>					
+        </p>
+        <p class="fragment">
+          <ul>
+            <li class="fragment"> Query $q_i$ - compared to every other input vector (keys) to establish weights for its own output $y_i$</li>
+            <li class="fragment"> Key $k_i$ - compared to every other input vector (query) to establish weights for the other, $j$-th vector $y_j$</li>
+            <li class="fragment"> Value $v_i$ - part of the weighed sum to compute $y_i$, weights computed from keys and queries</li>
+          </ul>
+        </p>
+      </section>
+
+      <section>
+        <h3>Self-Attention - key, value, query</h3>
+        <br>
+        <div style="display: inline-grid; grid-template-columns: 60% 40%; margin-left: 0%; margin-right: 0%;">
+          <div style="height: 100%; margin-right: 0%;">
+            <img src="images/key-query-value.svg">
+          </div>
+          <div>
+            <br>
+            $k_i = W_kx_i$ <br> $v_i = W_vx_i$ <br> $q_i = W_qx_i$ <br><br>
+            $y_i = \sum_{j} w_{ij}v_j$ <br><br>
+            $w'_{ij} = q_{i}^{T}k_j$ <br>
+            $w_{ij} = \text{softmax}(w'_{ij})$
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h3>Self-Attention - Scaling dot product</h3>
+        <p>
+          The next trick is to scale our dot product by $\frac{1}{\sqrt{d_k}}$, where $d_k$ is the length of 
+          our embedding vector. 
+        </p><br>
+        <p class="fragment">
+          $y_i = \sum_{j} w_{ij}v_j$ <br>
+          $w'_{ij} = \frac{q_{i}^{T}k_j}{\sqrt{d_k}}$ <br>
+          $w_{ij} = \text{softmax}(w'_{ij})$
+        </p>
+      </section>
+
+      <section>
+        <h3>Scaled Dot-Product Attention</h3>
+        <p>
+          $\text{Attention}(Q, K, V) = \text{softmax}(\frac{QK^T}{\sqrt{d_k}})V$ 
+        </p>
+        <div style="display: inline-grid; grid-template-columns: 65% 35%; margin-left: 0%; margin-right: 0%;">
+          <div>
+            <p>
+              Keys, values and queries are packed into matrices $K, V, Q$, which 
+              enables the attention function to be computed simultaneously over set of queries.
+            </p>
+          </div>
+          <div style="height: 100%; margin-right: 0%;">
+            <img src="images/scaled-dotprod-attention.png">
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h3>Scaled Dot-Product Attention</h3>
+        <p>
+          $\text{Attention}(Q, K, V) = \text{softmax}(\frac{QK^T}{\sqrt{d_k}})V$ 
+        </p>
+        <pre data-id="code-animation"><code class="python" data-trim data-line-numbers="1-8|10|11-13|14-15|16">
+class SelfAttention(nn.Module):
+  def __init__(self, emb_dim):
+    super().__init__()	
+    self.emb_dim = emb_dim
+
+    self.tokeys = nn.Linear(emb_dim, emb_dim, bias=False)
+    self.toqueries = nn.Linear(emb_dim, emb_dim, bias=False)
+    self.tovalues = nn.Linear(emb_dim, emb_dim, bias=False)	
+  def forward(self, x):
+    b, t, dk = x.size()
+    queries = self.toqueries(x)
+    keys    = self.tokeys(x)
+    values  = self.tovalues(x)		
+    dot = torch.einsum("bqe, bke -> bqk", [queries, keys])
+    softmaxed = torch.softmax(dot / (dk ** (1/2)), dim = 2)
+    out = torch.einsum("bqk, bke -> bqe", [softmaxed, values])	
+    return out					
+        </code></pre>
+      </section>
+    </section>
+
+    <section>
+      <section>
+        <h3>Multi-Head Attention</h3>
+        <p class = "fragment">We just stack several "Scaled Dot-Product Attention" :)</p>
+        <p class = "fragment" style="text-align: center">
+          Each attention mechanism (indexed by $h$) with different $W_{k}^{h}$, $W_{v}^{h}$, $W^s_{h}$ matrices. 
+        </p>
+        <p class = "fragment" style="text-align: center">
+          For input $x_i$, we produce different output vector $y_i^s$ for each head. 
+        </p>
+        <p class = "fragment" style="text-align: center">
+          We concatenate vectors $y_i^s$ and transform them linearly back to our expected dimension.
+        </p>
+      </section>
+
+      <section>
+        <h3>Multi-Head Attention</h3>
+        <p>	
+          $$\text{MultiHead}(X) = \text{Concat}(\text{head}_1, \text{head}_2,..., \text{head}_h)W_o$$
+          $$\text{head}_i = Attention(Q^i, K^i, V^i) $$
+        </p>
+        <div style="display: inline-grid; grid-template-columns: 65% 35%; margin-left: 0%; margin-right: 0%;">
+          <div>
+            <br>
+            $ Q^i = XW_q^i $ <br> $ K^i = XW_k^i $ <br> $ V^i = XW_v^i $
+          </div>
+          <div style="height: 100%; margin-right: 0%;">
+            <img src="images/multi-head-attention.png">
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h3>Multi-Head Attention</h3>
+        <pre data-id="code-animation">
+          <code class="python" data-trim data-line-numbers="1-10|11|12-14|15-17|18-19|20|21">
+class MultiHeadSelfAttention(nn.Module):
+  def __init__(self, emb_dim, heads = 8):
+    super().__init__()	
+    self.emb_dim = emb_dim
+    self.heads = heads
+
+    # we combine all heads into single linear transformation
+    self.tokeys = nn.Linear(emb_dim, emb_dim * 8, bias=False)
+    self.toqueries = nn.Linear(emb_dim, emb_dim * 8, bias=False)
+    self.tovalues = nn.Linear(emb_dim, emb_dim * 8 , bias=False)
+    self.unifyheads = nn.Linear(emb_dim * 8, emb_dim)	
+  def forward(self, x):
+    b, t, dk = x.size()
+    h = self.heads
+    queries = self.toqueries(x).view(b, t, h, dk)
+    keys    = self.tokeys(x).view(b, t, h, dk)
+    values  = self.tovalues(x).view(b, t, h, dk)	
+    dot = torch.einsum("bqhe,bkhe -> bhqk", [queries, keys])
+    softmaxed = torch.softmax(dot / (dk ** (1/2)), dim = 3)
+    out = torch.einsum("bhqk, bkhe -> bqhe", [softmaxed, values])	
+    return self.unifyheads(out)
+          </code>
+        </pre>
+      </section>
+    </section>
+
+    <section>
+      <section>
+        <h3>Encoder Block</h3>
+        <div style="display: inline-grid; grid-template-columns: 65% 35%; margin-left: 0%; margin-right: 0%;">
+          <div>
+            <ul><br>
+              <li class="fragment">Multi-Head Self-Attention</li>
+              <li class="fragment">FC Feed Forward - applied independently and identically to each vector. Two linear transformations with ReLU in between.</li>
+              <li class="fragment">Residual connections (added before normalization)</li>
+              <li class="fragment">Layer normalization</li>
+            </ul>
+          </div>
+          <div style="height: 80%; margin-right: 0%;">
+            <img src="images/encoder.png">
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h3>Let's see it in code!</h3>
+      </section>
+
+      <section>
+        <h2>Encoder code</h2>
+        <pre data-id="code-animation">
+          <code class="python" data-trim data-line-numbers="1-4|5|6-7|8-13|14|15|16|17|18">
+class Encoder(nn.Module):
+
+  def __init__(self, emb, heads, hidden_multiplier = 4):
+      super().__init__()
+      self.attention = MultiHeadSelfAttention(emb, heads=heads)
+      self.norm1 = nn.LayerNorm(emb)
+      self.norm2 = nn.LayerNorm(emb)
+      self.ff = nn.Sequential(
+          nn.Linear(emb, hidden_multiplier * emb),
+          nn.ReLU(),
+          nn.Linear(hidden_multiplier * emb, emb)
+          )
+
+  def forward(self, x): 
+      attended = self.attention(x)
+      x = self.norm1(attended + x)
+      forwarded = self.ff(x)
+      return self.norm2(forwarded + x)
+          </code>
+        </pre>
+      </section>
+    </section>
+    
+    <section>
+
+      <section>
+        <h3>Decoder Block</h3>
+        <div style="display: inline-grid; grid-template-columns: 65% 35%; margin-left: 0%; margin-right: 0%;">
+          <div>
+            <ul><br>
+              <li class="fragment">First Multi-Head Attention modified to prevent positions from attending to subsequent positions</li>
+              <li class="fragment">Encoder-Decoder: Keys and Values from Encoder, Query from Decoder</li>
+            </ul>
+          </div>
+          <div style="height: 120%; margin-right: 0%;">
+            <img src="images/decoder.png">
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h3>Implementation</h3>
+        <p>Left as an exercise for the reader :) </p>
+      </section>
+
+    </section>
+
+    <section>
+      <h3>One more look</h3>
+      <img src="images/transformer.png">
+    </section>
+
+    <section>
+      <h3>Bonus!</h3>
+    </section>
+
+    <section>
+      <h2>Encoder-Only architecture examples</h2>
+    </section>
+
+    <section>
+      <h2>Simple sequence classification transformer</h2>
+      <img src="images/classifier.svg">
+    </section>
+
+    <section>
+      <h3>Simple sequence classification transformer</h3>
+              <div style="width: 120%">
+                  <pre data-id="code-animation">
+                      <code class="python" data-trim data-line-numbers>
+class ClassificationTransformer(nn.Module):
+  def __init__(self, emb_dim, heads, depth, max_seq_length, num_tokens, num_classes):
+      super().__init__()
+
+      self.num_tokens = num_tokens
+      self.token_emb = nn.Embedding(num_tokens, emb_dim)
+      self.pos_emb = nn.Embedding(max_seq_length, emb_dim)
+
+      # stacked transformer blocks
+      blocks = [Encoder(emb = emb_dim, heads = heads) for _ in range(depth)]
+      self.blocks = nn.Sequential(*blocks)
+
+      # classification on top of transformer blocks
+      # (averaged transformer output sequence as input)
+      self.toprobs = nn.Linear(emb_dim, num_classes)
+
+  def forward(self, x):
+      b, seq_length = x.shape
+
+      # using positional embedding
+      # easier to implement than positional encoding
+      positions = self.pos_emb(torch.arange(0, max_seq_length, device = 'cuda').expand(b, max_seq_length))
+      tokens = self.token_emb(x)
+
+      # entire forward pass with mean
+      # averaging the last output sequence
+      x = tokens + positions
+      x = self.blocks(x)
+      x = x.mean(dim=1)
+      x = self.toprobs(x)
+
+      return F.log_softmax(x, dim = 1)
+                      </code>
+                  </pre>
+              </div>
+          </section>
+          
+          <section>
+              <section>
+                  <h3>BERT</h3>
+                  <p class="fragment">BERT (largest) = stack of 24 encoder blocks with embedding dimension of 1024 and 16 attention heads.</p>
+                  <p class="fragment">It is pretrained on 800M words from English books and 2.5B words from wikipedia.</p>
+                  <p class="fragment">Pretraining is done with 2 tasks:</p>
+                  <ol>
+                      <li class="fragment">Masking</li>
+                      <li class="fragment">Next sentence classification</li>
+                  </ol>
+              </section>
+
+              <section>
+                  <h3>Masking</h3>
+                  <p class="fragment">We replace randomly 15% of words in the input sequence. The model is then asked to predict the masked words.</p>
+                  <p class="fragment">Masking procedure:</p>
+                  <ul>
+                      <li class="fragment">
+                          [MASK] token - 80% of time: <br>
+                          my dog is hairy -> my dog is [MASK]
+                      </li>
+                      <li class="fragment">
+                          Random token - 10% of time: <br>
+                          my dog is hairy -> mydog is apple
+                      </li>
+                      <li class="fragment">
+                          Unchanged token - 10% of time:
+                          my dog is hairy -> mydog is apple
+                      </li>
+                  </ul>
+              </section>
+
+              <section>
+                  <h3>Next sequence classification</h3>
+                  <p class="fragment">We sample 2 sequences from our corpus that either:</p>
+                  <ul>
+                      <li class="fragment">Follow each other directly</li>
+                      <li class="fragment">Are taken from random places</li>
+                  </ul>
+                  <p class="fragment">The model is then asked which of those is the case.</p>
+                  <img class="fragment" src="images/next-sequence-prediction.png" style="width: 60%">
+              </section>
+
+              <section>
+                  <img src="images/bert-pretraining.png" style="width:80%">
+              </section>
+          </section>
+
+          <section>
+              <h1>The end!</h1>
+          </section>
+
+          <section>
+              <h3>References</h3>
+              <ul>
+                  <li>https://lilianweng.github.io/lil-log/2018/06/24/attention-attention.html</li>
+                  <li>https://www.youtube.com/watch?v=iDulhoQ2pro</li>
+                  <li>http://jalammar.github.io/illustrated-transformer/</li>
+                  <li>https://lionbridge.ai/articles/what-are-transformer-models-in-machine-learning/</li>
+                  <li>http://peterbloem.nl/blog/transformers</li>
+                  <li>https://arxiv.org/abs/1810.04805</li>
+                  <li>https://arxiv.org/abs/1706.03762</li>
+                  <li>https://github.com/BartWojtowicz/transformer-from-scratch</li>
+              </ul>
+          </section>
+
   </div>
 </div>
 
